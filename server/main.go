@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/sohaha/saiyan"
-	"github.com/sohaha/zlsgo/znet"
+	saiyan "github.com/sohaha/saiyan-go"
 	"github.com/sohaha/zlsgo/zcli"
+	"github.com/sohaha/zlsgo/znet"
 )
 
 var (
-	port = zcli.SetVar("port","Server Port").String(":8181")
+	port = zcli.SetVar("port", "Server Port").String(":8181")
 )
 
 func main() {

@@ -93,7 +93,7 @@ func New(c ...Conf) (e *Engine, err error) {
 		restart:    make(chan struct{}),
 	}
 
-	if e.phpPath, err = getPHP(conf.PHPExecPath,true); err != nil {
+	if e.phpPath, err = getPHP(conf.PHPExecPath, true); err != nil {
 		return
 	}
 
