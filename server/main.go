@@ -4,6 +4,8 @@ import (
 	saiyan "github.com/sohaha/saiyan-go"
 	"github.com/sohaha/zlsgo/zcli"
 	"github.com/sohaha/zlsgo/znet"
+
+	"github.com/sohaha/zlsgo/zlog"
 )
 
 var (
@@ -11,8 +13,17 @@ var (
 )
 
 func main() {
-	zcli.Parse()
+	zcli.Version = "1.0.0"
+	zcli.Name = "Saiyan"
+	if err := zcli.LaunchServiceRun("Saiyan", "", run); err != nil {
+		zlog.Error(err)
+		return
+	}
 
+	stop()
+}
+
+func run() {
 	r := znet.New()
 
 	// 初始化服务
@@ -31,4 +42,8 @@ func main() {
 
 	// 启动之后直接访问 http://127.0.0.1:8181 即可访问到 php 程序
 	znet.Run()
+}
+
+func stop() {
+
 }

@@ -3,13 +3,13 @@ package saiyan
 import (
 	"context"
 	"io"
-	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/sohaha/zlsgo/zfile"
 	"github.com/sohaha/zlsgo/zjson"
 	"github.com/sohaha/zlsgo/zstring"
 )
@@ -52,6 +52,7 @@ type (
 		StaticResourceDir          string
 		ForbidStaticResourceSuffix []string
 		Env                        []string
+		JSONRPC                    *RPC
 	}
 	Conf func(conf *Config)
 )
@@ -59,7 +60,7 @@ type (
 func New(c ...Conf) (e *Engine, err error) {
 	cpu := runtime.NumCPU()
 	conf := &Config{
-		Command:                    "zls saiyan start",
+		Command:                    zfile.RealPath("") + "/zls saiyan start",
 		WorkerSum:                  uint64(cpu),
 		MaxWorkerSum:               uint64(cpu * 2),
 		ReleaseTime:                1800,
@@ -73,9 +74,6 @@ func New(c ...Conf) (e *Engine, err error) {
 	if len(c) > 0 {
 		c[0](conf)
 	}
-	conf.Env = append(conf.Env, os.Environ()...)
-	conf.Env = append(conf.Env, "SAIYAN_VERSION="+VERSUION)
-	conf.Env = append(conf.Env, "ZLSPHP_WORKS=saiyan")
 	if conf.WorkerSum == 0 {
 		conf.WorkerSum = 1
 	}
@@ -84,6 +82,16 @@ func New(c ...Conf) (e *Engine, err error) {
 	}
 	conf.finalMaxWorkerSum = conf.MaxWorkerSum * 2
 	conf.StaticResourceDir = strings.TrimSuffix(conf.StaticResourceDir, "/")
+
+	//conf.Env = append(conf.Env, os.Environ()...)
+	conf.Env = append(conf.Env, "SAIYAN_VERSION="+VERSUION)
+	conf.Env = append(conf.Env, "ZLSPHP_WORKS=saiyan")
+
+	if conf.JSONRPC != nil {
+		addr := conf.JSONRPC.String()
+		conf.Env = append(conf.Env, "ZLSPHP_JSONRPC_ADDR="+addr)
+		go conf.JSONRPC.Accept(int(conf.MaxWorkerSum) * 2)
+	}
 
 	e = &Engine{
 		conf:       conf,
@@ -111,24 +119,25 @@ func New(c ...Conf) (e *Engine, err error) {
 		}
 		e.pubPool(w)
 	}
-	if conf.ReleaseTime != 0 {
-		go func() {
-			t := time.NewTicker(time.Duration(conf.ReleaseTime) * time.Second)
-			for {
-				select {
-				case <-t.C:
-					if e == nil {
-						t.Stop()
-						return
-					}
-					if e.Cap() != 0 {
-						e.Release(conf.WorkerSum)
-					}
-				}
-			}
-		}()
-	}
+
+	go e.cronRelease()
 	return
+}
+
+func (e *Engine) cronRelease() {
+	if e.conf.ReleaseTime != 0 {
+		t := time.NewTicker(time.Duration(e.conf.ReleaseTime) * time.Second)
+		for {
+			<-t.C
+			if e == nil {
+				t.Stop()
+				return
+			}
+			if e.Cap() != 0 {
+				e.Release(e.conf.WorkerSum)
+			}
+		}
+	}
 }
 
 func (e *Engine) Cap() uint64 {

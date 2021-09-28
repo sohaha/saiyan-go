@@ -37,7 +37,12 @@ func (e *Engine) httpHandler(c *znet.Context) {
 
 func (e *Engine) httpErr(c *znet.Context, err error) {
 	c.WithValue(HttpErrKey, err)
-	c.Abort(500)
+	if c.Engine.IsDebug() {
+		c.String(500, err.Error())
+	} else {
+		c.Abort(500)
+	}
+
 	go func() {
 		if err != nil {
 			switch err {
