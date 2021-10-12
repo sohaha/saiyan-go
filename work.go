@@ -52,65 +52,69 @@ type (
 		StaticResourceDir          string
 		ForbidStaticResourceSuffix []string
 		Env                        []string
+		CronTasks                  []string
 		JSONRPC                    *RPC
 	}
 	Conf func(conf *Config)
 )
 
-func New(c ...Conf) (e *Engine, err error) {
+func New(config ...Conf) (e *Engine, err error) {
 	cpu := runtime.NumCPU()
-	conf := &Config{
-		Command:                    zfile.RealPath("") + "/zls saiyan start",
+	zlsPath := zfile.RealPath("zls")
+	c := &Config{
+		Command:                    zlsPath + "saiyan start",
 		WorkerSum:                  uint64(cpu),
 		MaxWorkerSum:               uint64(cpu * 2),
 		ReleaseTime:                1800,
-		MaxRequests:                10240,
+		MaxRequests:                1 << 20,
 		MaxWaitTimeout:             60,
 		MaxExecTimeout:             180,
 		StaticResourceDir:          "public",
 		Env:                        []string{},
 		ForbidStaticResourceSuffix: []string{".php"},
 	}
-	if len(c) > 0 {
-		c[0](conf)
+	for i := range config {
+		config[i](c)
 	}
-	if conf.WorkerSum == 0 {
-		conf.WorkerSum = 1
+	if c.WorkerSum == 0 {
+		c.WorkerSum = 1
 	}
-	if conf.MaxWorkerSum == 0 {
-		conf.MaxWorkerSum = conf.WorkerSum / 2
+	if c.MaxWorkerSum == 0 {
+		c.MaxWorkerSum = c.WorkerSum / 2
 	}
-	conf.finalMaxWorkerSum = conf.MaxWorkerSum * 2
-	conf.StaticResourceDir = strings.TrimSuffix(conf.StaticResourceDir, "/")
+	c.finalMaxWorkerSum = c.MaxWorkerSum * 2
+	c.StaticResourceDir = strings.TrimSuffix(c.StaticResourceDir, "/")
 
-	//conf.Env = append(conf.Env, os.Environ()...)
-	conf.Env = append(conf.Env, "SAIYAN_VERSION="+VERSUION)
-	conf.Env = append(conf.Env, "ZLSPHP_WORKS=saiyan")
+	// c.Env = append(c.Env, os.Environ()...)
+	c.Env = append(c.Env, "SAIYAN_VERSION="+VERSUION)
+	c.Env = append(c.Env, "ZLSPHP_WORKS=saiyan")
 
-	if conf.JSONRPC != nil {
-		addr := conf.JSONRPC.String()
-		conf.Env = append(conf.Env, "ZLSPHP_JSONRPC_ADDR="+addr)
-		go conf.JSONRPC.Accept(int(conf.MaxWorkerSum) * 2)
+	if c.JSONRPC != nil {
+		addr := c.JSONRPC.String()
+		c.Env = append(c.Env, "ZLSPHP_JSONRPC_ADDR="+addr)
+		go c.JSONRPC.Accept(int(c.MaxWorkerSum) * 2)
 	}
+
+	c.Command = zstring.TrimSpace(c.Command)
 
 	e = &Engine{
-		conf:       conf,
-		pool:       make(chan *work, conf.finalMaxWorkerSum),
+		conf:       c,
+		pool:       make(chan *work, c.finalMaxWorkerSum),
 		collectErr: &EngineCollect{},
 		stop:       make(chan struct{}),
 		restart:    make(chan struct{}),
 	}
 
-	if e.phpPath, err = getPHP(conf.PHPExecPath, true); err != nil {
+	if e.phpPath, err = getPHP(c.PHPExecPath, true); err != nil {
 		return
 	}
 
-	e.mainCmd, err = testWork(e)
+	e.mainCmd, err = mainWork(e)
 	if err != nil {
 		return
 	}
 
-	for i := uint64(0); i < conf.WorkerSum; i++ {
+	for i := uint64(0); i < c.WorkerSum; i++ {
 		e.collectErr.aliveWorkerSum++
 		var w *work
 		w, err = e.newWorker(true)
@@ -119,24 +123,26 @@ func New(c ...Conf) (e *Engine, err error) {
 		}
 		e.pubPool(w)
 	}
-
-	go e.cronRelease()
+	err = e.startTasks()
+	e.cronRelease()
 	return
 }
 
 func (e *Engine) cronRelease() {
 	if e.conf.ReleaseTime != 0 {
-		t := time.NewTicker(time.Duration(e.conf.ReleaseTime) * time.Second)
-		for {
-			<-t.C
-			if e == nil {
-				t.Stop()
-				return
+		go func() {
+			t := time.NewTicker(time.Duration(e.conf.ReleaseTime) * time.Second)
+			for {
+				<-t.C
+				if e == nil {
+					t.Stop()
+					return
+				}
+				if e.Cap() != 0 {
+					e.Release(e.conf.WorkerSum)
+				}
 			}
-			if e.Cap() != 0 {
-				e.Release(e.conf.WorkerSum)
-			}
-		}
+		}()
 	}
 }
 

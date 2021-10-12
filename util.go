@@ -93,7 +93,7 @@ func (p Prefix) WithSize(size uint64) Prefix {
 	return p
 }
 
-func testWork(e *Engine) (*exec.Cmd, error) {
+func mainWork(e *Engine) (*exec.Cmd, error) {
 	p, err := e.newWorker(false)
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func testWork(e *Engine) (*exec.Cmd, error) {
 		select {
 		case <-e.restart:
 			e.release(0)
-			cmd, err := testWork(e)
+			cmd, err := mainWork(e)
 			if err != nil {
 				e.stop <- struct{}{}
 				return
