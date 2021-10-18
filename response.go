@@ -51,7 +51,7 @@ func (e *Engine) newResponse(c *znet.Context, v *saiyanVar, header, result []byt
 			k := key.String()
 			if k == "Location" {
 				showContext = false
-				c.Redirect(v[0].String(), 301)
+				c.Redirect(v[0].String())
 				return true
 			}
 			for i := range v {

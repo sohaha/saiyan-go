@@ -32,6 +32,7 @@ func (e *Engine) httpHandler(c *znet.Context) {
 		e.httpErr(c, err)
 		return
 	}
+
 	e.newResponse(c, v, header, result, prefix)
 }
 
@@ -69,14 +70,16 @@ func (e *Engine) exportFile(file string) (string, bool) {
 		file = file + "index.html"
 		ext = ".html"
 	}
-	if !zfile.FileExist(file) {
-		return "", false
-	}
 
 	for i := range e.conf.ForbidStaticResourceSuffix {
 		if ext == e.conf.ForbidStaticResourceSuffix[i] {
 			return "", false
 		}
 	}
+
+	if !zfile.FileExist(file) {
+		return "", false
+	}
+
 	return file, true
 }
