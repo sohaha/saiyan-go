@@ -62,7 +62,7 @@ func New(config ...Conf) (e *Engine, err error) {
 	cpu := runtime.NumCPU()
 	zlsPath := zfile.RealPath("zls")
 	c := &Config{
-		Command:                    zlsPath + "saiyan start",
+		Command:                    zlsPath + " saiyan start",
 		WorkerSum:                  uint64(cpu),
 		MaxWorkerSum:               uint64(cpu * 2),
 		ReleaseTime:                1800,
