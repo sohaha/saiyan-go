@@ -104,7 +104,7 @@ func mainWork(e *Engine) (*exec.Cmd, error) {
 	json, _ := zjson.SetBytes([]byte(""), "pid", pid)
 	data, _, err := p.send(json, PayloadEmpty, 2)
 	if err != nil {
-		code, _, errStr, _ := zshell.Run(e.conf.PHPExecPath + " " + e.conf.Command)
+		code, _, errStr, _ := zshell.Run(e.phpPath + " " + e.conf.Command)
 		if code != 0 && errStr != "" {
 			errTip = errors.New(errStr)
 		}
