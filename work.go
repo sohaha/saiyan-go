@@ -58,7 +58,7 @@ type (
 	Conf func(conf *Config)
 )
 
-func New(config ...Conf) (e *Engine, err error) {
+func New(config ...Option) (e *Engine, err error) {
 	cpu := runtime.NumCPU()
 	zlsPath := zfile.RealPath("zls")
 	c := &Config{
