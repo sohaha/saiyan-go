@@ -2,6 +2,7 @@ package saiyan
 
 import (
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 
 	"github.com/sohaha/zlsgo/zfile"
@@ -61,25 +62,27 @@ func (e *Engine) httpErr(c *znet.Context, err error) {
 }
 
 func (e *Engine) exportFile(file string) (string, bool) {
-	if e.conf.StaticResourceDir == "" {
-		return "", false
-	}
-	file = e.conf.StaticResourceDir + file
-	ext := filepath.Ext(file)
-	if ext == "" {
-		file = file + "index.html"
-		ext = ".html"
-	}
-
-	for i := range e.conf.ForbidStaticResourceSuffix {
-		if ext == e.conf.ForbidStaticResourceSuffix[i] {
-			return "", false
+	dirs := e.conf.StaticResourceDirs
+	forbidExt := e.conf.ForbidStaticResourceSuffix
+	file = file[1:]
+	for i := range dirs {
+		if strings.HasPrefix(file, dirs[i]) {
+			file = e.conf.ProjectPath + "/public/" + file
+			ext := filepath.Ext(file)
+			if ext == "" {
+				file = file + "index.html"
+				ext = ".html"
+			}
+			if !zfile.FileExist(file) {
+				return "", false
+			}
+			for i := range forbidExt {
+				if ext == forbidExt[i] {
+					return "", false
+				}
+			}
+			return file, true
 		}
 	}
-
-	if !zfile.FileExist(file) {
-		return "", false
-	}
-
-	return file, true
+	return "", false
 }

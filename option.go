@@ -1,11 +1,22 @@
 package saiyan
 
+import (
+	"github.com/sohaha/zlsgo/zfile"
+)
+
 type Option func(conf *Config)
 
 // WithCommand Custom start command
 func WithCommand(command string) Option {
 	return func(c *Config) {
 		c.Command = command
+	}
+}
+
+// WithProjectPath Custom project dir
+func WithProjectPath(path string) Option {
+	return func(c *Config) {
+		c.ProjectPath = zfile.RealPath(path)
 	}
 }
 

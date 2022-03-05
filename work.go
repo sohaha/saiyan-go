@@ -49,27 +49,28 @@ type (
 		MaxWaitTimeout             uint64
 		MaxExecTimeout             uint64
 		TrimPrefix                 string
-		StaticResourceDir          string
+		StaticResourceDirs         []string
 		ForbidStaticResourceSuffix []string
 		Env                        []string
 		CronTasks                  []string
 		JSONRPC                    *RPC
+		ProjectPath                string
 	}
 	Conf func(conf *Config)
 )
 
 func New(config ...Option) (e *Engine, err error) {
 	cpu := runtime.NumCPU()
-	zlsPath := zfile.RealPath("zls")
 	c := &Config{
-		Command:                    zlsPath + " saiyan start",
+		ProjectPath:                zfile.RealPath("."),
+		Command:                    "zls saiyan start",
 		WorkerSum:                  uint64(cpu),
-		MaxWorkerSum:               uint64(cpu * 2),
+		MaxWorkerSum:               uint64(cpu * 4),
 		ReleaseTime:                1800,
 		MaxRequests:                1 << 20,
 		MaxWaitTimeout:             60,
 		MaxExecTimeout:             180,
-		StaticResourceDir:          "public",
+		StaticResourceDirs:         []string{"static"},
 		Env:                        []string{},
 		ForbidStaticResourceSuffix: []string{".php"},
 	}
@@ -83,11 +84,10 @@ func New(config ...Option) (e *Engine, err error) {
 		c.MaxWorkerSum = c.WorkerSum / 2
 	}
 	c.finalMaxWorkerSum = c.MaxWorkerSum * 2
-	c.StaticResourceDir = strings.TrimSuffix(c.StaticResourceDir, "/")
-
 	// c.Env = append(c.Env, os.Environ()...)
 	c.Env = append(c.Env, "SAIYAN_VERSION="+VERSUION)
 	c.Env = append(c.Env, "ZLSPHP_WORKS=saiyan")
+	c.Command = c.ProjectPath + "/" + c.Command
 
 	if c.JSONRPC != nil {
 		addr := c.JSONRPC.String()
@@ -123,6 +123,7 @@ func New(config ...Option) (e *Engine, err error) {
 		}
 		e.pubPool(w)
 	}
+
 	err = e.startTasks()
 	e.cronRelease()
 	return
