@@ -42,14 +42,14 @@ func (r *RPC) String() string {
 	return r.addr
 }
 
-func (r *RPC) Accept(pool int) {
-	p := zpool.New(pool)
+func (r *RPC) Accept(pool uint64) {
+	p := zpool.New(int(pool))
 	for {
 		conn, err := r.listener.Accept()
 		if err != nil {
 			continue
 		}
-		p.Do(func() {
+		_ = p.Do(func() {
 			jsonrpc.ServeConn(conn)
 		})
 	}

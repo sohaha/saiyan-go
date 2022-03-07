@@ -1,0 +1,48 @@
+project_name: saiyan
+
+# goreleaser build  --rm-dist --skip-validate
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./server
+    ldflags:
+      - -s -w -X 'github.com/sohaha/zlsgo/zcli.BuildTime={{.Date}}' -X 'github.com/sohaha/zlsgo/zcli.Version={{.Version}}'
+    goos:
+      - windows
+      - linux
+      - darwin
+      - android
+    goarm:
+      - 6
+      - 7
+    ignore:
+      - goos: android
+        goarch: 386
+    env:
+      - GO111MODULE=on
+      
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      android: Android
+      386: i386
+      amd64: x86_64
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: 'next'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - (?i)--

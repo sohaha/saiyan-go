@@ -5,13 +5,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/sohaha/zlsgo/zhttp"
-	"github.com/sohaha/zlsgo/zlog"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/sohaha/zlsgo/zhttp"
+	"github.com/sohaha/zlsgo/zlog"
 
 	"github.com/sohaha/zlsgo/zfile"
 	"github.com/sohaha/zlsgo/zjson"
@@ -100,8 +101,8 @@ func mainWork(e *Engine) (*exec.Cmd, error) {
 	}
 	cmd := p.Cmd
 	errTip := fmt.Errorf("php service is illegal. Docs: %v\n", "https://docs.73zls.com/zlsgo/#/bd5f3e29-b914-4d20-aa48-5f7c9d629d2b")
-	pid := cmd.Process.Pid
-	json, _ := zjson.SetBytes([]byte(""), "pid", pid)
+	e.pid = cmd.Process.Pid
+	json, _ := zjson.SetBytes([]byte(""), "pid", e.pid)
 	data, _, err := p.send(json, PayloadEmpty, 2)
 	if err != nil {
 		code, _, errStr, _ := zshell.Run(e.phpPath + " " + e.conf.Command)
@@ -111,7 +112,7 @@ func mainWork(e *Engine) (*exec.Cmd, error) {
 		return cmd, errTip
 	}
 	rPid := zjson.GetBytes(data, "pid").Int()
-	if pid != rPid {
+	if e.pid != rPid {
 		return cmd, errTip
 	}
 	go func() {
@@ -138,11 +139,12 @@ func mainWork(e *Engine) (*exec.Cmd, error) {
 			}
 			e.mainCmd = cmd
 		case <-e.stop:
-			e.release(0)
-			close(e.pool)
 			if e.mainCmd != nil {
 				_ = e.mainCmd.Process.Kill()
+				e.mainCmd = nil
 			}
+			e.release(0)
+			close(e.pool)
 		}
 	}()
 	return cmd, nil

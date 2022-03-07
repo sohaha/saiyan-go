@@ -24,6 +24,7 @@ type (
 		mutex      sync.RWMutex
 		mainCmd    *exec.Cmd
 		collectErr *EngineCollect
+		pid        int
 	}
 	EngineCollect struct {
 		ExecTimeout    uint64
@@ -83,6 +84,9 @@ func New(config ...Option) (e *Engine, err error) {
 	if c.MaxWorkerSum == 0 {
 		c.MaxWorkerSum = c.WorkerSum / 2
 	}
+	if c.WorkerSum > c.MaxWorkerSum {
+		c.WorkerSum = c.MaxWorkerSum
+	}
 	c.finalMaxWorkerSum = c.MaxWorkerSum * 2
 	// c.Env = append(c.Env, os.Environ()...)
 	c.Env = append(c.Env, "SAIYAN_VERSION="+VERSUION)
@@ -92,7 +96,7 @@ func New(config ...Option) (e *Engine, err error) {
 	if c.JSONRPC != nil {
 		addr := c.JSONRPC.String()
 		c.Env = append(c.Env, "ZLSPHP_JSONRPC_ADDR="+addr)
-		go c.JSONRPC.Accept(int(c.MaxWorkerSum) * 2)
+		go c.JSONRPC.Accept(c.finalMaxWorkerSum)
 	}
 
 	c.Command = zstring.TrimSpace(c.Command)
@@ -127,6 +131,10 @@ func New(config ...Option) (e *Engine, err error) {
 	err = e.startTasks()
 	e.cronRelease()
 	return
+}
+
+func (e *Engine) PID() int {
+	return e.pid
 }
 
 func (e *Engine) cronRelease() {
@@ -171,11 +179,11 @@ func (e *Engine) IsClose() bool {
 }
 
 func (e *Engine) Close() {
-	e.stop <- struct{}{}
 	if e.mainCmd != nil {
+		e.stop <- struct{}{}
 		_ = e.mainCmd.Process.Kill()
+		e.release(0)
 	}
-	e.release(0)
 }
 
 func (e *Engine) Restart() {
