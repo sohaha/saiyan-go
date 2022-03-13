@@ -28,17 +28,25 @@ func (cmd *StopCli) Flags(_ *zcli.Subcommand) {
 }
 
 func (cmd *StopCli) Run(_ []string) {
-	pid := servePID()
+	stop(servePID(), 0)
+}
+
+func stop(pid int, signal syscall.Signal) {
 	proc, err := os.FindProcess(pid)
-	if err != nil {
+	if err != nil || proc.Pid == 0 {
 		return
 	}
 
-	if zutil.IsWin() {
-		err = proc.Kill()
+	if signal > 0 {
+		err = proc.Signal(signal)
 	} else {
-		err = proc.Signal(syscall.SIGQUIT)
+		if zutil.IsWin() {
+			err = proc.Kill()
+		} else {
+			err = proc.Signal(syscall.SIGQUIT)
+		}
 	}
+
 	if err != nil {
 		zcli.Error(err.Error())
 		return
@@ -67,7 +75,11 @@ func existProcess() bool {
 	if pid == 0 {
 		return false
 	}
-	_, err := os.FindProcess(pid)
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	err = proc.Signal(syscall.Signal(0))
 	return err == nil
 }
 

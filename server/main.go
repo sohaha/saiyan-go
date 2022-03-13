@@ -3,7 +3,9 @@ package main
 import (
 	"os"
 	"strconv"
+	"syscall"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/sohaha/zlsgo/zutil"
 
 	"github.com/sohaha/saiyan-go"
@@ -24,6 +26,7 @@ func main() {
 	initRunFlags()
 
 	zcli.Name = "Saiyan"
+	zcli.Version = "0.1.1"
 	zcli.EnableDetach = true
 
 	zcli.Add("start", "Start Serve", &StartCli{})
@@ -102,7 +105,37 @@ func runProcess() {
 	znet.ShutdownDone = stopProcess
 
 	serve, master := PIDFile()
-	_ = zfile.WriteFile(serve, []byte(strconv.Itoa(os.Getpid())))
-	_ = zfile.WriteFile(master, []byte(strconv.Itoa(w.PID())))
+	err = zutil.TryCatch(func() error {
+		pid := os.Getpid()
+		zutil.CheckErr(zfile.WriteFile(serve, []byte(strconv.Itoa(pid))))
+		zutil.CheckErr(zfile.WriteFile(master, []byte(strconv.Itoa(w.PID()))))
+		watchPID(serve, pid)
+		return nil
+	})
+	if err != nil {
+		zcli.Error(err.Error())
+	}
+
 	znet.Run()
+}
+
+func watchPID(serve string, pid int) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return
+	}
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				if event.Op == fsnotify.Remove {
+					stop(pid, syscall.SIGINT)
+				}
+			}
+		}
+	}()
+	_ = watcher.Add(serve)
 }
