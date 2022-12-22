@@ -26,16 +26,16 @@ func (e *Engine) newResponse(c *znet.Context, v *saiyanVar, header, result []byt
 
 	j := zjson.ParseBytes(header)
 
-	context.Code = j.Get("status").Int()
-	if p.HasFlag(PayloadError) || context.Code == 0 {
-		context.Code = 500
+	code := int32(j.Get("status").Int())
+	if p.HasFlag(PayloadError) || code == 0 {
+		code = 500
 	} else {
 		context.Content = result
 	}
-
+	context.Code.Store(code)
 	cookies := j.Get("cookies")
 	if cookies.IsArray() {
-		cookies.ForEach(func(key, value zjson.Res) bool {
+		cookies.ForEach(func(key, value *zjson.Res) bool {
 			v := value.Array()
 			c.SetCookie(v[0].String(), v[1].String(), v[2].Int())
 			return true
@@ -46,7 +46,7 @@ func (e *Engine) newResponse(c *znet.Context, v *saiyanVar, header, result []byt
 
 	headers := j.Get("headers")
 	if headers.IsObject() {
-		headers.ForEach(func(key, value zjson.Res) bool {
+		headers.ForEach(func(key, value *zjson.Res) bool {
 			v := value.Array()
 			k := key.String()
 			if k == "Location" {

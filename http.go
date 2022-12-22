@@ -9,7 +9,7 @@ import (
 	"github.com/sohaha/zlsgo/znet"
 )
 
-func (e *Engine) BindHttpHandler(r *znet.Engine, middlewares ...znet.HandlerFunc) {
+func (e *Engine) BindHttpHandler(r *znet.Engine, middlewares ...znet.Handler) {
 	r.Any("/", e.httpHandler, middlewares...)
 	r.Any("*", e.httpHandler, middlewares...)
 }
